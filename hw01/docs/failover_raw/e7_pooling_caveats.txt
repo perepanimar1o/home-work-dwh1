@@ -1,0 +1,24 @@
+Exception in thread Thread-2 (blocker):
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/threading.py", line 1043, in _bootstrap_inner
+    self.run()
+    ~~~~~~~~^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/threading.py", line 994, in run
+    self._target(*self._args, **self._kwargs)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<stdin>", line 15, in blocker
+psycopg2.errors.QueryCanceled: canceling statement due to statement timeout
+
+--- напрямую (:5400)
+  SET statement_timeout='777ms' -> следующий SHOW statement_timeout: 777ms
+  временная таблица в следующей транзакции: видна
+  pg_advisory_unlock(4242) (сессионная блокировка, взятая раньше): True
+--- через PgBouncer (:6432)
+  SET statement_timeout='777ms' -> следующий SHOW statement_timeout: 0
+  временная таблица в следующей транзакции: ОШИБКА: relation "tmp_demo" does not exist
+  pg_advisory_unlock(4242) (сессионная блокировка, взятая раньше): False
+
+(пояснение к трассировке в начале вывода: исключение QueryCanceled в потоке blocker возникло во втором прогоне, через PgBouncer.
+ Поток-«перехватчик» получил серверное соединение с «протёкшим» SET statement_timeout='777ms' от другого клиента, и его pg_sleep(3) был отменён.
+ Состояние сессии одного клиента отравило другого — типичный сбой при transaction pooling.
+ Сессионная advisory-блокировка 4242 осталась висеть на серверном соединении пула; после эксперимента пул перезапущен: docker compose restart pgbouncer-rw)

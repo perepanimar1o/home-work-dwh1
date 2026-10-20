@@ -1,0 +1,101 @@
+кластер до: pg2=replica/running, pg3=leader/running
+20:45:11.850 UTC: docker stop hw01-etcd3-1     (1 из 3 etcd остановлен)
+20:45:43.026 UTC: кластер при 2 живых etcd: pg2=replica/running, pg3=leader/running
+20:45:43.073 UTC: docker stop hw01-etcd2-1     (2 из 3 etcd остановлены: кворума нет)
+20:46:24.236 UTC: кластер при 1 живом etcd: pg2=replica/running, pg3=leader/running
+20:46:24.279 UTC: docker start hw01-etcd2-1 hw01-etcd3-1   (кворум возвращён)
+
+=== write-loop (лидер, HAProxy :5400) ===
+20:45:01.799 UTC: старт, 2 потоков, 150 с, dsn=localhost:5400/postgres
+
+итог: длительность 150.0 с, успешных транзакций 29410, ошибок 1022
+      TPS (успешных/с) = 196.1;  задержка записи: медиана 1.71 мс, p95 3.37 мс
+      окно недоступности записи (RTO): 34.32 с  (последняя успешная запись 20:45:54.175, первая успешная после 20:46:28.491 UTC)
+      отклонено попыток в окне: 1022
+      --- фрагмент write-loop вокруг провала ---
+      20:45:54.166 w1 OK  lat_ms=1.3 id=1301139
+      20:45:54.174 w1 OK  lat_ms=3.0 id=1301140
+      20:45:54.175 w2 OK  lat_ms=3.9 id=1301141
+      20:45:54.183 w1 ERR lat_ms=2.6 server closed the connection unexpectedly
+      20:45:54.183 w2 ERR lat_ms=2.8 server closed the connection unexpectedly
+      20:45:54.246 w1 ERR lat_ms=5.6 connection to server at "localhost" (::1), port 5400 failed: FATAL:  the database system is shutting down
+      20:45:54.246 w2 ERR lat_ms=5.2 connection to server at "localhost" (::1), port 5400 failed: FATAL:  the database system is shutting down
+      20:45:55.322 w2 ERR lat_ms=1018.5 cannot execute INSERT in a read-only transaction
+            ... (ещё ошибки) ...
+      20:46:28.283 w2 ERR lat_ms=4.0 connection to server at "localhost" (::1), port 5400 failed: server closed the connection unexpectedly
+      20:46:28.348 w2 ERR lat_ms=7.8 connection to server at "localhost" (::1), port 5400 failed: server closed the connection unexpectedly
+      20:46:28.348 w1 ERR lat_ms=7.5 connection to server at "localhost" (::1), port 5400 failed: server closed the connection unexpectedly
+      20:46:28.411 w2 ERR lat_ms=6.9 connection to server at "localhost" (::1), port 5400 failed: server closed the connection unexpectedly
+      20:46:28.411 w1 ERR lat_ms=5.5 connection to server at "localhost" (::1), port 5400 failed: server closed the connection unexpectedly
+      20:46:28.491 w2 OK  lat_ms=21.6 id=1301143
+      20:46:28.492 w1 OK  lat_ms=19.7 id=1301142
+      20:46:28.499 w2 OK  lat_ms=2.2 id=1301144
+      ошибки:
+        x2     20:45:54.183 .. 20:45:54.183  server closed the connection unexpectedly
+        x2     20:45:54.246 .. 20:45:54.246  connection to server at "localhost" (::1), port 5400 failed: FATAL:  the database system is shutting down
+        x82    20:45:55.322 .. 20:45:58.328  cannot execute INSERT in a read-only transaction
+        x936   20:45:58.387 .. 20:46:28.411  connection to server at "localhost" (::1), port 5400 failed: server closed the connection unexpectedly
+      подтверждённые id сохранены: /dev/null (29410)
+
+=== read-loop (реплики, HAProxy :5401) ===
+20:45:01.772 UTC: старт, 1 потоков, 150 с, dsn=localhost:5401/postgres
+
+итог: длительность 150.1 с, успешных транзакций 1433, ошибок 0
+      TPS (успешных/с) = 9.5;  задержка записи: медиана 1.66 мс, p95 3.78 мс
+      провалов записи дольше 1 с нет (макс. промежуток между успехами 115 мс)
+
+кластер после: pg2=replica/running, pg3=leader/running
+
+=== лог Patroni лидера pg3 (UTC), ключевые строки вокруг потери кворума и возврата ===
+2026-10-20 20:45:44,098 ERROR: watchprefix failed: ProtocolError('Response ended prematurely')
+2026-10-20 20:45:44,099 ERROR: Request to server http://etcd2:2379 failed: MaxRetryError('HTTPConnectionPool(host=\'etcd2\', port=2379): Max retries exceeded with url: /v3/kv/range (Caused by NewConnectionError("HTTPConn
+2026-10-20 20:45:44,100 INFO: Retrying on http://etcd3:2379
+2026-10-20 20:45:45,769 ERROR: Request to server http://etcd3:2379 failed: MaxRetryError("HTTPConnectionPool(host='etcd3', port=2379): Max retries exceeded with url: /v3/kv/range (Caused by ConnectTimeoutError(<HTTPConne
+2026-10-20 20:45:45,769 INFO: Retrying on http://etcd1:2379
+2026-10-20 20:45:45,771 INFO: Selected new etcd server http://etcd1:2379
+2026-10-20 20:45:45,813 INFO: Lock owner: pg3; I am pg3
+2026-10-20 20:45:49,153 ERROR: Request to server http://etcd1:2379 failed: ReadTimeoutError("HTTPConnectionPool(host='etcd1', port=2379): Read timed out. (read timeout=3.333038374333531)")
+2026-10-20 20:45:49,153 INFO: Retrying on http://etcd3:2379
+2026-10-20 20:45:49,372 ERROR: Request to server http://etcd3:2379 failed: ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+2026-10-20 20:45:49,372 INFO: Retrying on http://etcd2:2379
+2026-10-20 20:45:49,553 ERROR: Request to server http://etcd2:2379 failed: ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+2026-10-20 20:45:51,953 ERROR: Request to server http://etcd1:2379 failed: ReadTimeoutError("HTTPConnectionPool(host='etcd1', port=2379): Read timed out. (read timeout=1.9330252062324387)")
+2026-10-20 20:45:51,953 INFO: Retrying on http://etcd3:2379
+2026-10-20 20:45:52,135 ERROR: Request to server http://etcd3:2379 failed: ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+2026-10-20 20:45:52,135 INFO: Retrying on http://etcd2:2379
+2026-10-20 20:45:52,442 ERROR: Request to server http://etcd2:2379 failed: ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+2026-10-20 20:45:53,766 ERROR: Request to server http://etcd1:2379 failed: ReadTimeoutError("HTTPConnectionPool(host='etcd1', port=2379): Read timed out. (read timeout=1.0265382728445427)")
+2026-10-20 20:45:53,766 INFO: Retrying on http://etcd3:2379
+2026-10-20 20:45:53,978 ERROR: Request to server http://etcd3:2379 failed: ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+2026-10-20 20:45:53,979 INFO: Retrying on http://etcd2:2379
+2026-10-20 20:45:54,172 ERROR: Request to server http://etcd2:2379 failed: ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+2026-10-20 20:45:54,173 ERROR: Error communicating with DCS
+2026-10-20 20:45:54,173 INFO: demoting self because DCS is not accessible and I was a leader
+2026-10-20 20:45:54,173 ERROR: watchprefix failed: ProtocolError("Connection broken: ConnectionResetError(104, 'Connection reset by peer')", ConnectionResetError(104, 'Connection reset by peer'))
+2026-10-20 20:45:54.318 UTC [570] LOG:  database system is ready to accept read-only connections
+2026-10-20 20:45:55.321 UTC [584] ERROR:  cannot execute INSERT in a read-only transaction
+2026-10-20 20:45:55.321 UTC [585] ERROR:  cannot execute INSERT in a read-only transaction
+2026-10-20 20:45:55.394 UTC [589] ERROR:  cannot execute INSERT in a read-only transaction
+2026-10-20 20:45:55.394 UTC [588] ERROR:  cannot execute INSERT in a read-only transaction
+2026-10-20 20:45:55.464 UTC [590] ERROR:  cannot execute INSERT in a read-only transaction
+2026-10-20 20:45:55.467 UTC [591] ERROR:  cannot execute INSERT in a read-only transaction
+2026-10-20 20:45:55.535 UTC [592] ERROR:  cannot execute INSERT in a read-only transaction
+2026-10-20 20:45:55.535 UTC [593] ERROR:  cannot execute INSERT in a read-only transaction
+
+=== лог Patroni реплики pg2 (UTC) ===
+2026-10-20 20:45:44,620 INFO: Lock owner: pg3; I am pg2
+2026-10-20 20:45:47,959 ERROR: Request to server http://etcd1:2379 failed: ReadTimeoutError("HTTPConnectionPool(host='etcd1', port=2379): Read timed out. (read timeout=3.3332680833339814)")
+2026-10-20 20:45:47,959 INFO: Retrying on http://etcd2:2379
+2026-10-20 20:45:49,629 ERROR: Request to server http://etcd2:2379 failed: MaxRetryError("HTTPConnectionPool(host='etcd2', port=2379): Max retries exceeded with url: /v3/lease/keepalive (Caused by Con
+2026-10-20 20:45:49,630 INFO: Retrying on http://etcd3:2379
+2026-10-20 20:45:51,298 ERROR: Request to server http://etcd3:2379 failed: MaxRetryError("HTTPConnectionPool(host='etcd3', port=2379): Max retries exceeded with url: /v3/lease/keepalive (Caused by Con
+2026-10-20 20:45:53,202 ERROR: Request to server http://etcd1:2379 failed: ReadTimeoutError("HTTPConnectionPool(host='etcd1', port=2379): Read timed out. (read timeout=1.4258051950755544)")
+2026-10-20 20:45:53,202 INFO: Retrying on http://etcd2:2379
+2026-10-20 20:45:53,421 ERROR: Request to server http://etcd2:2379 failed: ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+2026-10-20 20:45:53,421 ERROR: 
+2026-10-20 20:45:53,422 ERROR: watchprefix failed: ProtocolError("Connection broken: ConnectionResetError(104, 'Connection reset by peer')", ConnectionResetError(104, 'Connection reset by peer'))
+2026-10-20 20:45:54.249 UTC [1071] FATAL:  streaming replication receiver "hw01-cluster" could not connect to the primary server: connection to server at "pg3" (172.19.0.6), port 5432 failed: FATAL:  
+2026-10-20 20:45:54,622 INFO: Lock owner: pg3; I am pg2
+2026-10-20 20:45:57,958 ERROR: Request to server http://etcd1:2379 failed: ReadTimeoutError("HTTPConnectionPool(host='etcd1', port=2379): Read timed out. (read timeout=3.3330408753330025)")
+2026-10-20 20:45:57,958 INFO: Retrying on http://etcd2:2379
+2026-10-20 20:45:58,129 ERROR: Request to server http://etcd2:2379 failed: ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))

@@ -1,0 +1,38 @@
+synchronous_mode=False; лидер=pg1; реплики=pg2 pg3; пауза между отключением реплик и убийством лидера = 0.5 с
+20:43:22.057 UTC: docker network disconnect hw01_default hw01-pg2-1
+20:43:22.240 UTC: docker network disconnect hw01_default hw01-pg3-1
+20:43:22.923 UTC: docker kill hw01-pg1-1   (лидер убит, реплики всё ещё отрезаны)
+20:43:23.101 UTC: docker network connect hw01_default hw01-pg2-1
+20:43:23.145 UTC: docker network connect hw01_default hw01-pg3-1
+--- итог write-loop:
+20:43:14.124 UTC: старт, 4 потоков, 70 с, dsn=localhost:5400/postgres
+
+итог: длительность 70.0 с, успешных транзакций 146981, ошибок 2100
+      TPS (успешных/с) = 2099.7;  задержка записи: медиана 0.98 мс, p95 1.26 мс
+      окно недоступности записи (RTO): 33.11 с  (последняя успешная запись 20:43:22.941, первая успешная после 20:43:56.053 UTC)
+      отклонено попыток в окне: 2099
+      --- фрагмент write-loop вокруг провала ---
+      20:43:22.940 w3 OK  lat_ms=0.9 id=1175666
+      20:43:22.940 w1 OK  lat_ms=0.9 id=1175667
+      20:43:22.941 w2 OK  lat_ms=1.6 id=1175668
+      20:43:22.942 w1 ERR lat_ms=1.1 server closed the connection unexpectedly
+      20:43:22.942 w4 ERR lat_ms=1.6 server closed the connection unexpectedly
+      20:43:22.942 w2 ERR lat_ms=0.4 server closed the connection unexpectedly
+      20:43:24.023 w2 ERR lat_ms=1030.2 cannot execute INSERT in a read-only transaction
+      20:43:24.024 w3 ERR lat_ms=1028.5 cannot execute INSERT in a read-only transaction
+            ... (ещё ошибки) ...
+      20:43:55.925 w4 ERR lat_ms=8.6 connection to server at "localhost" (::1), port 5400 failed: server closed the connection unexpectedly
+      20:43:55.985 w2 ERR lat_ms=7.3 connection to server at "localhost" (::1), port 5400 failed: server closed the connection unexpectedly
+      20:43:55.985 w3 ERR lat_ms=7.2 connection to server at "localhost" (::1), port 5400 failed: server closed the connection unexpectedly
+      20:43:55.985 w1 ERR lat_ms=10.1 connection to server at "localhost" (::1), port 5400 failed: server closed the connection unexpectedly
+      20:43:55.985 w4 ERR lat_ms=10.0 connection to server at "localhost" (::1), port 5400 failed: server closed the connection unexpectedly
+      20:43:56.053 w3 OK  lat_ms=17.3 id=1172955
+      20:43:56.054 w2 OK  lat_ms=15.8 id=1172954
+      20:43:56.054 w1 OK  lat_ms=17.9 id=1172953
+      ошибки:
+        x4     20:43:22.941 .. 20:43:22.942  server closed the connection unexpectedly
+        x220   20:43:24.023 .. 20:43:27.903  cannot execute INSERT in a read-only transaction
+        x1876  20:43:27.959 .. 20:43:55.985  connection to server at "localhost" (::1), port 5400 failed: server closed the connection unexpectedly
+      подтверждённые id сохранены: /var/folders/qk/xqr31yfn2ybdzfwmsk725srw0000gn/T/tmp.lop3px8XkZ (146981)
+--- проверка на новом лидере:
+проверка на узле 172.19.0.6/32 (in_recovery=False): подтверждено клиенту 146981, найдено в таблице 144233, ПОТЕРЯНО подтверждённых транзакций: 2748

@@ -1,0 +1,39 @@
+до: pg1=leader, pg2=replica, pg3=replica
+20:36:39.612 UTC: команда: docker compose exec pg1 patronictl -c /tmp/patroni.yml switchover --force --leader pg1 --candidate pg2
+| pg1    | pg1  | Replica | stopped |    |   unknown |
+| pg2    | pg2  | Leader  | running |  4 |           |
+| pg3    | pg3  | Replica | running |  3 |         0 |
++--------+------+---------+---------+----+-----------+
+20:36:42.049 UTC: команда вернула управление
+--- вывод write-loop:
+20:36:27.626 UTC: старт, 4 потоков, 40 с, dsn=localhost:5400/postgres
+
+итог: длительность 40.0 с, успешных транзакций 5392, ошибок 32
+      TPS (успешных/с) = 134.8;  задержка записи: медиана 3.53 мс, p95 5.92 мс
+      окно недоступности записи (RTO): 4.69 с  (последняя успешная запись 20:36:40.063, первая успешная после 20:36:44.750 UTC)
+      отклонено попыток в окне: 30
+      --- фрагмент write-loop вокруг провала ---
+      20:36:40.062 w2 OK  lat_ms=1.7 id=674715
+      20:36:40.062 w3 OK  lat_ms=1.7 id=674716
+      20:36:40.063 w1 OK  lat_ms=2.1 id=674717
+      20:36:40.084 w4 ERR lat_ms=0.4 server closed the connection unexpectedly
+      20:36:40.084 w3 ERR lat_ms=0.2 server closed the connection unexpectedly
+      20:36:40.084 w2 ERR lat_ms=0.1 server closed the connection unexpectedly
+      20:36:40.084 w1 ERR lat_ms=0.1 server closed the connection unexpectedly
+      20:36:44.161 w2 ERR lat_ms=4005.8 connection to server at "localhost" (::1), port 5400 failed: timeout expired
+            ... (ещё ошибки) ...
+      20:36:44.651 w2 ERR lat_ms=20.3 cannot execute INSERT in a read-only transaction
+      20:36:44.651 w1 ERR lat_ms=20.6 cannot execute INSERT in a read-only transaction
+      20:36:44.653 w3 ERR lat_ms=19.8 cannot execute INSERT in a read-only transaction
+      20:36:44.749 w1 ERR lat_ms=17.6 cannot execute INSERT in a read-only transaction
+      20:36:44.749 w3 ERR lat_ms=17.2 cannot execute INSERT in a read-only transaction
+      20:36:44.750 w4 OK  lat_ms=26.2 id=674719
+      20:36:44.751 w2 OK  lat_ms=20.7 id=674720
+      20:36:44.776 w2 OK  lat_ms=2.4 id=674721
+      ошибки:
+        x4     20:36:40.084 .. 20:36:40.084  server closed the connection unexpectedly
+        x4     20:36:44.161 .. 20:36:44.166  connection to server at "localhost" (::1), port 5400 failed: timeout expired
+        x24    20:36:44.257 .. 20:36:44.928  cannot execute INSERT in a read-only transaction
+      подтверждённые id сохранены: /tmp/e4b.acks (5392)
+после: pg1=replica/running, pg2=leader/running, pg3=replica/running
+проверка на узле 172.19.0.6/32 (in_recovery=False): подтверждено клиенту 5392, найдено в таблице 5392, ПОТЕРЯНО подтверждённых транзакций: 0

@@ -1,0 +1,21 @@
+до: pg1=replica, pg2=leader, pg3=replica
+20:34:29.020 UTC: команда: docker compose exec pg2 patronictl -c /tmp/patroni.yml switchover --force --leader pg2 --candidate pg1
+Current cluster topology
++ Cluster: hw01-cluster --+---------+----+-----------+
+| Member | Host | Role    | State   | TL | Lag in MB |
++--------+------+---------+---------+----+-----------+
+| pg1    | pg1  | Replica | running |  2 |         0 |
+| pg2    | pg2  | Leader  | running |  2 |           |
+| pg3    | pg3  | Replica | running |  2 |         0 |
++--------+------+---------+---------+----+-----------+
+Switchover failed, details: 412, switchover is not possible: no good candidates have been found
+20:34:29.466 UTC: команда вернула управление
+--- вывод write-loop:
+20:34:17.067 UTC: старт, 4 потоков, 40 с, dsn=localhost:5400/postgres
+
+итог: длительность 40.0 с, успешных транзакций 142908, ошибок 0
+      TPS (успешных/с) = 3572.6;  задержка записи: медиана 1.10 мс, p95 1.38 мс
+      провалов записи дольше 1 с нет (макс. промежуток между успехами 6 мс)
+      подтверждённые id сохранены: /tmp/e4.acks (142908)
+после: pg1=replica/running, pg2=leader/running, pg3=replica/running
+проверка на узле 172.19.0.6/32 (in_recovery=False): подтверждено клиенту 142908, найдено в таблице 142908, ПОТЕРЯНО подтверждённых транзакций: 0

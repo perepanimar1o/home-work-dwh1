@@ -1,0 +1,27 @@
+лидер сейчас: ['pg2']
+команда: docker compose exec pg2 patronictl -c /tmp/patroni.yml edit-config --force -s synchronous_mode=true
+   use_slots: true
+ retry_timeout: 10
+-synchronous_mode: false
++synchronous_mode: true
+ ttl: 30
+Configuration changed
+--- состояние после включения:
++ Cluster: hw01-cluster -------+---------+----+-----------+
+| Member | Host | Role         | State   | TL | Lag in MB |
++--------+------+--------------+---------+----+-----------+
+| pg1    | pg1  | Replica      | running |  4 |         0 |
+| pg2    | pg2  | Leader       | running |  4 |           |
+| pg3    | pg3  | Sync Standby | running |  4 |         0 |
++--------+------+--------------+---------+----+-----------+
+pg3
+pg1|streaming|async
+pg3|streaming|sync
+--- Э1 повтор в sync-режиме (60 c, 4 потока):
+20:38:00.312 UTC: старт, 4 потоков, 60 с, dsn=localhost:5400/postgres
+
+итог: длительность 60.0 с, успешных транзакций 176977, ошибок 0
+      TPS (успешных/с) = 2949.6;  задержка записи: медиана 1.33 мс, p95 1.58 мс
+      провалов записи дольше 1 с нет (макс. промежуток между успехами 8 мс)
+      подтверждённые id сохранены: /tmp/e5.acks (176977)
+проверка на узле 172.19.0.6/32 (in_recovery=False): подтверждено клиенту 176977, найдено в таблице 176977, ПОТЕРЯНО подтверждённых транзакций: 0

@@ -1,0 +1,54 @@
+# параметры стенда (снято 2026-10-20T20:29:10Z)
+--- машина/ОС
+Apple M4 Pro
+ncpu=12 ram_bytes=25769803776
+ProductName:		macOS
+ProductVersion:		26.5.1
+BuildVersion:		25F80
+Darwin 25.5.0
+--- docker
+Docker version 29.5.3, build d1c06ef
+Docker Compose version v5.1.4
+docker VM: cpus=12 mem=8321232896 server=29.5.3
+--- образы
+PostgreSQL 18.6 (Debian 18.6-1.pgdg12+2) on aarch64-unknown-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit
+patroni 3.0.0
+--- patroni dynamic config
+{
+    "ttl": 30,
+    "loop_wait": 10,
+    "retry_timeout": 10,
+    "maximum_lag_on_failover": 1048576,
+    "synchronous_mode": false,
+    "postgresql": {
+        "use_pg_rewind": true,
+        "use_slots": true,
+        "parameters": {
+            "wal_level": "logical",
+            "hot_standby": "on",
+            "max_wal_senders": 10,
+            "max_replication_slots": 10,
+            "wal_log_hints": "on",
+            "max_connections": 100,
+            "shared_buffers": "128MB",
+            "timezone": "UTC",
+            "datestyle": "ISO, YMD",
+            "password_encryption": "scram-sha-256"
+        }
+    }
+}
+--- кластер
+            "name": "pg1",
+            "role": "leader",
+            "state": "running",
+            "timeline": 1
+            "name": "pg2",
+            "role": "replica",
+            "state": "running",
+            "timeline": 1,
+            "lag": 0
+            "name": "pg3",
+            "role": "replica",
+            "state": "running",
+            "timeline": 1,
+            "lag": 0

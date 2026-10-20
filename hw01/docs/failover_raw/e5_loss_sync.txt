@@ -1,0 +1,38 @@
+synchronous_mode=True; лидер=pg3; реплики=pg1 pg2; пауза между отключением реплик и убийством лидера = 0.5 с
+20:41:23.740 UTC: docker network disconnect hw01_default hw01-pg1-1
+20:41:23.905 UTC: docker network disconnect hw01_default hw01-pg2-1
+20:41:24.597 UTC: docker kill hw01-pg3-1   (лидер убит, реплики всё ещё отрезаны)
+20:41:24.818 UTC: docker network connect hw01_default hw01-pg1-1
+20:41:24.863 UTC: docker network connect hw01_default hw01-pg2-1
+--- итог write-loop:
+20:41:15.702 UTC: старт, 4 потоков, 70 с, dsn=localhost:5400/postgres
+
+итог: длительность 70.0 с, успешных транзакций 149992, ошибок 1148
+      TPS (успешных/с) = 2142.7;  задержка записи: медиана 1.06 мс, p95 1.41 мс
+      окно недоступности записи (RTO): 29.95 с  (последняя успешная запись 20:41:23.843, первая успешная после 20:41:53.795 UTC)
+      отклонено попыток в окне: 1148
+      --- фрагмент write-loop вокруг провала ---
+      20:41:23.842 w1 OK  lat_ms=1.7 id=1017357
+      20:41:23.842 w4 OK  lat_ms=1.6 id=1017358
+      20:41:23.843 w2 OK  lat_ms=1.7 id=1017359
+      20:41:24.632 w2 ERR lat_ms=789.2 server closed the connection unexpectedly
+      20:41:24.632 w4 ERR lat_ms=789.6 server closed the connection unexpectedly
+      20:41:24.632 w1 ERR lat_ms=790.0 server closed the connection unexpectedly
+      20:41:24.632 w3 ERR lat_ms=790.4 server closed the connection unexpectedly
+      20:41:28.690 w2 ERR lat_ms=4005.9 connection to server at "localhost" (::1), port 5400 failed: timeout expired
+            ... (ещё ошибки) ...
+      20:41:53.658 w4 ERR lat_ms=5.9 connection to server at "localhost" (::1), port 5400 failed: server closed the connection unexpectedly
+      20:41:53.720 w2 ERR lat_ms=9.8 connection to server at "localhost" (::1), port 5400 failed: server closed the connection unexpectedly
+      20:41:53.720 w3 ERR lat_ms=9.9 connection to server at "localhost" (::1), port 5400 failed: server closed the connection unexpectedly
+      20:41:53.720 w1 ERR lat_ms=10.3 connection to server at "localhost" (::1), port 5400 failed: server closed the connection unexpectedly
+      20:41:53.720 w4 ERR lat_ms=10.2 connection to server at "localhost" (::1), port 5400 failed: server closed the connection unexpectedly
+      20:41:53.795 w4 OK  lat_ms=23.4 id=1017391
+      20:41:53.795 w1 OK  lat_ms=23.9 id=1017394
+      20:41:53.795 w3 OK  lat_ms=24.1 id=1017393
+      ошибки:
+        x4     20:41:24.632 .. 20:41:24.632  server closed the connection unexpectedly
+        x12    20:41:28.690 .. 20:41:36.809  connection to server at "localhost" (::1), port 5400 failed: timeout expired
+        x1132  20:41:36.869 .. 20:41:53.720  connection to server at "localhost" (::1), port 5400 failed: server closed the connection unexpectedly
+      подтверждённые id сохранены: /var/folders/qk/xqr31yfn2ybdzfwmsk725srw0000gn/T/tmp.PgBXrPXzPx (149992)
+--- проверка на новом лидере:
+проверка на узле 172.19.0.5/32 (in_recovery=False): подтверждено клиенту 149992, найдено в таблице 149992, ПОТЕРЯНО подтверждённых транзакций: 0

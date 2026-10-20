@@ -1,0 +1,53 @@
+LSN лидера pg2 перед возвратом pg1: 0/15DF2470
+20:32:31.103 UTC: команда: docker start hw01-pg1-1
+hw01-pg1-1
+20:32:34.351 UTC: pg1 снова в кластере: replica running 0, прошло 3 с
+--- динамика состояния pg1 (раз в секунду, только изменения):
+ c: pg1 -> нет данных
+ c: pg1 -> replica stopped unknown
+ c: pg1 -> replica running 0
+--- лог Patroni на pg1 после старта (ключевые строки):
+2026-10-20 20:26:46,921 INFO: Lock owner: None; I am pg1
+2026-10-20 20:32:31,349 INFO: Lock owner: pg2; I am pg1
+  Min recovery ending loc's timeline: 0
+2026-10-20 20:32:32,106 INFO: Lock owner: pg2; I am pg1
+  Min recovery ending loc's timeline: 0
+2026-10-20 20:32:32,107 INFO: Lock owner: pg2; I am pg1
+2026-10-20 20:32:32,109 INFO: Local timeline=1 lsn=0/14000028
+2026-10-20 20:32:32,116 INFO: primary_timeline=2
+2026-10-20 20:32:32,119 INFO: running pg_rewind from pg2
+2026-10-20 20:32:32,131 INFO: running pg_rewind from dbname=postgres user=postgres host=pg2 port=5432 target_session_attrs=read-write
+2026-10-20 20:32:33,137 INFO: pg_rewind exit code=0
+2026-10-20 20:32:33,138 INFO:  stderr=pg_rewind: servers diverged at WAL location 0/13DE41F8 on timeline 1
+pg_rewind: rewinding from last common checkpoint at 0/4000130 on timeline 1
+pg_rewind: Done!
+2026-10-20 20:32:33,138 INFO: Lock owner: pg2; I am pg1
+  Min recovery ending loc's timeline: 2
+2026-10-20 20:32:33,138 INFO: Lock owner: pg2; I am pg1
+2026-10-20 20:32:33,139 INFO: starting as a secondary
+2026-10-20 20:32:33.274 UTC [50] LOG:  starting backup recovery with redo LSN 0/40000D8, checkpoint LSN 0/4000130, on timeline ID 1
+2026-10-20 20:32:33.275 UTC [50] LOG:  redo starts at 0/40000D8
+2026-10-20 20:32:33.821 UTC [50] LOG:  consistent recovery state reached at 0/15DF2470
+2026-10-20 20:32:33.828 UTC [54] FATAL:  could not start WAL streaming: ERROR:  replication slot "pg1" does not exist
+2026-10-20 20:32:33.832 UTC [55] FATAL:  could not start WAL streaming: ERROR:  replication slot "pg1" does not exist
+2026-10-20 20:32:34,223 INFO: Lock owner: pg2; I am pg1
+2026-10-20 20:32:34,275 INFO: no action. I am (pg1), a secondary, and following a leader (pg2)
+--- pg_stat_replication на лидере:
+pg3|streaming|async|0
+LSN лидера сейчас: 0/15DF2470|объём WAL между точками, байт: 0
+--- ожидание streaming для pg1 в pg_stat_replication (отсчёт от момента первой проверки после возврата узла):
+pg1 -> 'streaming' (этот запрос выполнен уже после старта репликации). Точное время старта — по логу pg1: 20:32:43.846 UTC,
+т.е. через 12.7 с после docker start (20:32:31.103); слот репликации 'pg1' Patroni создаёт на лидере на следующей итерации HA-цикла (loop_wait=10 с)
+ application_name |   state   | sync_state | lag_bytes 
+------------------+-----------+------------+-----------
+ pg1              | streaming | async      |         0
+ pg3              | streaming | async      |         0
+(2 rows)
+
+ slot_name | active 
+-----------+--------
+ pg1       | t
+ pg3       | t
+(2 rows)
+
+2026-10-20 20:32:43.846 UTC [85] LOG:  started streaming WAL from primary at 0/15000000 on timeline 2

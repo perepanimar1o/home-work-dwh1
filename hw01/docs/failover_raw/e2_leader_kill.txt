@@ -1,0 +1,81 @@
+до: pg1=leader, pg2=replica, pg3=replica
+20:31:06.428 UTC: команда: docker kill hw01-pg1-1   (убиваем лидера pg1)
+hw01-pg1-1
+--- вывод write-loop:
+20:30:51.507 UTC: старт, 4 потоков, 60 с, dsn=localhost:5400/postgres
+
+итог: длительность 60.0 с, успешных транзакций 136815, ошибок 876
+      TPS (успешных/с) = 2280.2;  задержка записи: медиана 0.98 мс, p95 1.31 мс
+      окно недоступности записи (RTO): 25.22 с  (последняя успешная запись 20:31:06.448, первая успешная после 20:31:31.666 UTC)
+      отклонено попыток в окне: 876
+      --- фрагмент write-loop вокруг провала ---
+      20:31:06.447 w3 OK  lat_ms=1.5 id=264084
+      20:31:06.447 w4 OK  lat_ms=1.1 id=264085
+      20:31:06.448 w1 OK  lat_ms=1.4 id=264086
+      20:31:06.448 w3 ERR lat_ms=1.4 server closed the connection unexpectedly
+      20:31:06.448 w4 ERR lat_ms=1.4 server closed the connection unexpectedly
+      20:31:06.449 w2 ERR lat_ms=2.6 server closed the connection unexpectedly
+      20:31:06.449 w1 ERR lat_ms=1.5 server closed the connection unexpectedly
+      20:31:10.509 w1 ERR lat_ms=4009.2 connection to server at "localhost" (::1), port 5400 failed: timeout expired
+            ... (ещё ошибки) ...
+      20:31:31.527 w4 ERR lat_ms=6.3 connection to server at "localhost" (::1), port 5400 failed: server closed the connection unexpectedly
+      20:31:31.588 w2 ERR lat_ms=5.8 connection to server at "localhost" (::1), port 5400 failed: server closed the connection unexpectedly
+      20:31:31.588 w4 ERR lat_ms=5.7 connection to server at "localhost" (::1), port 5400 failed: server closed the connection unexpectedly
+      20:31:31.588 w1 ERR lat_ms=6.5 connection to server at "localhost" (::1), port 5400 failed: server closed the connection unexpectedly
+      20:31:31.588 w3 ERR lat_ms=6.4 connection to server at "localhost" (::1), port 5400 failed: server closed the connection unexpectedly
+      20:31:31.666 w3 OK  lat_ms=25.4 id=264102
+      20:31:31.667 w4 OK  lat_ms=26.1 id=264101
+      20:31:31.667 w2 OK  lat_ms=25.7 id=264103
+      ошибки:
+        x4     20:31:06.448 .. 20:31:06.449  server closed the connection unexpectedly
+        x12    20:31:10.509 .. 20:31:18.630  connection to server at "localhost" (::1), port 5400 failed: timeout expired
+        x860   20:31:18.691 .. 20:31:31.588  connection to server at "localhost" (::1), port 5400 failed: server closed the connection unexpectedly
+      подтверждённые id сохранены: /tmp/e2.acks (136815)
+после: pg2=leader/running, pg3=replica/running
+проверка на узле 172.19.0.6/32 (in_recovery=False): подтверждено клиенту 136815, найдено в таблице 136815, ПОТЕРЯНО подтверждённых транзакций: 0
+
+--- лог Patroni нового лидера pg2 (UTC) и реплики pg3 вокруг события:
+pg2: 2026-10-20 20:31:06.447 UTC [54] FATAL:  could not receive data from WAL stream: server closed the connection unexpectedly
+pg2: 2026-10-20 20:31:06.447 UTC [29] LOG:  invalid record length at 0/13DE41F8: expected at least 24, got 0
+pg2: 2026-10-20 20:31:06.450 UTC [647] FATAL:  streaming replication receiver "hw01-cluster" could not connect to the primary server: connection to server at "pg1" (172.19.0.5), port 5432 failed: server closed 
+pg2: 2026-10-20 20:31:06.450 UTC [29] LOG:  waiting for WAL to become available at 0/13DE4210
+pg2: 2026-10-20 20:31:11.849 UTC [660] FATAL:  streaming replication receiver "hw01-cluster" could not connect to the primary server: connection to server at "pg1" (198.18.3.149), port 5432 failed: server close
+pg2: 2026-10-20 20:31:11.849 UTC [29] LOG:  waiting for WAL to become available at 0/13DE4210
+pg2: 2026-10-20 20:31:16.853 UTC [673] FATAL:  streaming replication receiver "hw01-cluster" could not connect to the primary server: connection to server at "pg1" (198.18.3.149), port 5432 failed: server close
+pg2: 2026-10-20 20:31:16.854 UTC [29] LOG:  waiting for WAL to become available at 0/13DE4210
+pg2: 2026-10-20 20:31:21.880 UTC [686] FATAL:  streaming replication receiver "hw01-cluster" could not connect to the primary server: connection to server at "pg1" (198.18.3.149), port 5432 failed: server close
+pg2: 2026-10-20 20:31:21.881 UTC [29] LOG:  waiting for WAL to become available at 0/13DE4210
+pg2: 2026-10-20 20:31:26.867 UTC [699] FATAL:  streaming replication receiver "hw01-cluster" could not connect to the primary server: connection to server at "pg1" (198.18.3.149), port 5432 failed: server close
+pg2: 2026-10-20 20:31:26.867 UTC [29] LOG:  waiting for WAL to become available at 0/13DE4210
+pg2: 2026-10-20 20:31:28,175 INFO: Got response from pg3 http://pg3:8008/patroni: {"state": "running", "postmaster_start_time": "2026-10-20 20:26:53.475727+00:00", "role": "replica", "server_version": 180006, "
+pg2: 2026-10-20 20:31:28,438 WARNING: Request failed to pg1: GET http://pg1:8008/patroni (HTTPConnectionPool(host='pg1', port=8008): Max retries exceeded with url: /patroni (Caused by ProtocolError('Connection 
+pg2: 2026-10-20 20:31:28,534 WARNING: Could not activate Linux watchdog device: "Can't open watchdog device: [Errno 2] No such file or directory: '/dev/watchdog'"
+pg2: 2026-10-20 20:31:28.552 UTC [710] ERROR:  replication slot "pg3" does not exist
+pg2: 2026-10-20 20:31:28.552 UTC [710] STATEMENT:  START_REPLICATION SLOT "pg3" 0/13000000 TIMELINE 1
+pg2: 2026-10-20 20:31:28.580 UTC [29] LOG:  received promote request
+pg2: 2026-10-20 20:31:28.580 UTC [29] LOG:  redo done at 0/13DE41C8 system usage: CPU: user: 2.11 s, system: 1.79 s, elapsed: 274.98 s
+pg2: 2026-10-20 20:31:28.580 UTC [29] LOG:  last completed transaction was at log time 2026-10-20 20:31:06.446091+00
+pg2: 2026-10-20 20:31:28,579 INFO: promoted self to leader by acquiring session lock
+pg2: 2026-10-20 20:31:28,581 INFO: cleared rewind state after becoming the leader
+pg2: 2026-10-20 20:31:28,582 WARNING: Exception happened during processing of request from 172.19.0.7:37872
+pg2: 2026-10-20 20:31:28,583 WARNING: Traceback (most recent call last):
+pg2: 2026-10-20 20:31:28.585 UTC [29] LOG:  selected new timeline ID: 2
+pg2: 2026-10-20 20:31:28.603 UTC [29] LOG:  archive recovery complete
+pg2: 2026-10-20 20:31:28.619 UTC [27] LOG:  checkpoint starting: force
+pg2: 2026-10-20 20:31:28.621 UTC [22] LOG:  database system is ready to accept connections
+pg2: 2026-10-20 20:31:28,580 INFO: Lock owner: pg2; I am pg2
+pg2: 2026-10-20 20:31:28,665 INFO: updated leader lock during promote
+pg3: 2026-10-20 20:31:06.446 UTC [54] FATAL:  could not send data to WAL stream: server closed the connection unexpectedly
+pg3: 2026-10-20 20:31:06.446 UTC [29] LOG:  invalid record length at 0/13DE41C8: expected at least 24, got 0
+pg3: 2026-10-20 20:31:06.450 UTC [650] FATAL:  streaming replication receiver "hw01-cluster" could not connect to the primary server: connection to server at "pg1" (172.19.0.5), port 5432 failed: server closed 
+pg3: 2026-10-20 20:31:06.450 UTC [29] LOG:  waiting for WAL to become available at 0/13DE41E0
+pg3: 2026-10-20 20:31:11.857 UTC [663] FATAL:  streaming replication receiver "hw01-cluster" could not connect to the primary server: connection to server at "pg1" (198.18.3.149), port 5432 failed: server close
+pg3: 2026-10-20 20:31:11.858 UTC [29] LOG:  waiting for WAL to become available at 0/13DE41E0
+pg3: 2026-10-20 20:31:16.903 UTC [676] FATAL:  streaming replication receiver "hw01-cluster" could not connect to the primary server: connection to server at "pg1" (198.18.3.149), port 5432 failed: server close
+pg3: 2026-10-20 20:31:16.903 UTC [29] LOG:  waiting for WAL to become available at 0/13DE41E0
+pg3: 2026-10-20 20:31:21.890 UTC [689] FATAL:  streaming replication receiver "hw01-cluster" could not connect to the primary server: connection to server at "pg1" (198.18.3.149), port 5432 failed: server close
+pg3: 2026-10-20 20:31:21.890 UTC [29] LOG:  waiting for WAL to become available at 0/13DE41E0
+pg3: 2026-10-20 20:31:26.874 UTC [702] FATAL:  streaming replication receiver "hw01-cluster" could not connect to the primary server: connection to server at "pg1" (198.18.3.149), port 5432 failed: server close
+pg3: 2026-10-20 20:31:26.874 UTC [29] LOG:  waiting for WAL to become available at 0/13DE41E0
+pg3: 2026-10-20 20:31:28,174 INFO: Got response from pg2 http://pg2:8008/patroni: {"state": "running", "postmaster_start_time": "2026-10-20 20:26:53.476947+00:00", "role": "replica", "server_version": 180006, "
+pg3: 2026-10-20 20:31:28,393 WARNING: Request failed to pg1: GET http://pg1:8008/patroni (HTTPConnectionPool(host='pg1', port=8008): Max retries exceeded with url: /patroni (Caused by ProtocolError('Connection 

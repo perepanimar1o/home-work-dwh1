@@ -1,0 +1,10 @@
+20:55:38.192 UTC: команда: docker compose stop   (все 9 контейнеров: имитация потери питания всего ЦОД; тома с данными сохраняются)
+ Container hw01-etcd1-1 Stopped 
+ Container hw01-etcd3-1 Stopped 
+20:55:44.699 UTC: команда: docker compose start
+ Container hw01-pgbouncer-ro-1 Started 
+20:55:57.211 UTC: ПЕРВАЯ УСПЕШНАЯ ЗАПИСЬ через пул (:6432), id=1332492; холодный старт занял 1.0 с
+кластер после старта: pg1=replica/running, pg2=leader/running, pg3=replica/running
+
+итого: от команды docker compose start (20:55:44.699) до первой успешной записи (20:55:57.211) прошло 12.5 с
+(сама команда docker compose start возвращается после запуска контейнеров с учётом depends_on/healthcheck).

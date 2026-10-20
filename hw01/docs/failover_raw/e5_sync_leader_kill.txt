@@ -1,0 +1,44 @@
+до: pg1=replica, pg2=leader, pg3=sync_standby
+20:39:28.943 UTC: команда: docker kill hw01-pg2-1   (убиваем лидера pg2, synchronous_mode=true)
+hw01-pg2-1
+--- вывод write-loop:
+20:39:13.963 UTC: старт, 4 потоков, 70 с, dsn=localhost:5400/postgres
+
+итог: длительность 70.0 с, успешных транзакций 138143, ошибок 1260
+      TPS (успешных/с) = 1973.4;  задержка записи: медиана 1.03 мс, p95 1.46 мс
+      окно недоступности записи (RTO): 32.73 с  (последняя успешная запись 20:39:26.981, первая успешная после 20:39:59.706 UTC)
+      отклонено попыток в окне: 1260
+      --- фрагмент write-loop вокруг провала ---
+      20:39:26.981 w1 OK  lat_ms=1.4 id=893531
+      20:39:26.981 w4 OK  lat_ms=1.3 id=893532
+      20:39:26.981 w3 OK  lat_ms=1.3 id=893533
+      20:39:28.967 w1 ERR lat_ms=1986.3 server closed the connection unexpectedly
+      20:39:28.968 w2 ERR lat_ms=1987.2 server closed the connection unexpectedly
+      20:39:28.968 w4 ERR lat_ms=1986.6 server closed the connection unexpectedly
+      20:39:28.968 w3 ERR lat_ms=1986.9 server closed the connection unexpectedly
+      20:39:33.026 w2 ERR lat_ms=4007.3 connection to server at "localhost" (::1), port 5400 failed: timeout expired
+            ... (ещё ошибки) ...
+      20:39:59.567 w4 ERR lat_ms=8.7 connection to server at "localhost" (::1), port 5400 failed: server closed the connection unexpectedly
+      20:39:59.624 w1 ERR lat_ms=6.1 connection to server at "localhost" (::1), port 5400 failed: server closed the connection unexpectedly
+      20:39:59.624 w2 ERR lat_ms=6.0 connection to server at "localhost" (::1), port 5400 failed: server closed the connection unexpectedly
+      20:39:59.624 w3 ERR lat_ms=5.2 connection to server at "localhost" (::1), port 5400 failed: server closed the connection unexpectedly
+      20:39:59.624 w4 ERR lat_ms=5.0 connection to server at "localhost" (::1), port 5400 failed: server closed the connection unexpectedly
+      20:39:59.706 w3 OK  lat_ms=28.4 id=893542
+      20:39:59.707 w2 OK  lat_ms=29.8 id=893543
+      20:39:59.707 w1 OK  lat_ms=29.6 id=893544
+      ошибки:
+        x4     20:39:28.967 .. 20:39:28.968  server closed the connection unexpectedly
+        x12    20:39:33.026 .. 20:39:41.156  connection to server at "localhost" (::1), port 5400 failed: timeout expired
+        x1244  20:39:41.227 .. 20:39:59.624  connection to server at "localhost" (::1), port 5400 failed: server closed the connection unexpectedly
+      подтверждённые id сохранены: /tmp/e5k.acks (138143)
+после: pg1=sync_standby/running, pg3=leader/running
+проверка на узле 172.19.0.8/32 (in_recovery=False): подтверждено клиенту 138143, найдено в таблице 138143, ПОТЕРЯНО подтверждённых транзакций: 0
+--- Patroni (новый лидер): ключевые строки
+2026-10-20 20:39:34,894 INFO: no action. I am (pg1), a secondary, and following a leader (pg2)
+2026-10-20 20:39:44,803 INFO: no action. I am (pg1), a secondary, and following a leader (pg2)
+2026-10-20 20:39:54,836 INFO: following a different leader because i am not the healthiest node
+2026-10-20 20:39:56,888 INFO: no action. I am (pg1), a secondary, and following a leader (pg3)
+2026-10-20 20:39:58,075 INFO: no action. I am (pg1), a secondary, and following a leader (pg3)
+2026-10-20 20:39:58.337 UTC [824] LOG:  restartpoint complete: wrote 3875 buffers (23.7%), wrote 40 SLRU buffers; 0 WAL file(s) added, 5 removed, 0 recycled; write=0.017 s, sync=0.005 s, total=0.033 s
+2026-10-20 20:40:10,214 INFO: no action. I am (pg1), a secondary, and following a leader (pg3)
+2026-10-20 20:40:18,285 INFO: no action. I am (pg1), a secondary, and following a leader (pg3)

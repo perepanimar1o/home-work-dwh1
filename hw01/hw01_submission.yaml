@@ -1,0 +1,81 @@
+# ============================================================================
+#  hw01_submission.yaml — манифест сдачи ДЗ №1
+#  Запуск проверки:  python hw01_check.py --submission ./hw01_submission.yaml
+#  (перед этим: pip install -r requirements.txt)
+# ============================================================================
+
+team:
+  members:
+    - "Volkov Kirill"
+  github_logins:
+    - "perepanimar1o"
+  solo: true            # true, если сдаёте в одиночку (+2 балла); если в команде — false и перечислите всех выше
+
+entrypoint:
+  up: "docker compose up -d --build"
+  wait_ready: "./scripts/wait_ready.sh"
+  seed: "./scripts/seed.sh --seed 42"
+  seed_delta: "./scripts/seed.sh --seed 777 --receipts 500"
+  down: "docker compose down -v"
+
+# ----------------------------------------------------------------------------
+# Подключения. Порты на хосте:
+#   6432 PgBouncer -> лидер      6433 PgBouncer -> реплики
+#   5400 HAProxy   -> лидер      5401 HAProxy   -> реплики      8008 Patroni REST API
+# (на macOS порты 5000 и 7000 заняты AirPlay, поэтому HAProxy опубликован на 5400/5401)
+# ----------------------------------------------------------------------------
+connections:
+  master:
+    crm:     "postgresql://checker:checker@localhost:6432/crm_service_db"
+    catalog: "postgresql://checker:checker@localhost:6432/catalog_service_db"
+    pos:     "postgresql://checker:checker@localhost:6432/pos_service_db"
+    wms:     "postgresql://checker:checker@localhost:6432/wms_service_db"
+  replica:
+    crm:     "postgresql://checker:checker@localhost:6433/crm_service_db"
+    catalog: "postgresql://checker:checker@localhost:6433/catalog_service_db"
+    pos:     "postgresql://checker:checker@localhost:6433/pos_service_db"
+    wms:     "postgresql://checker:checker@localhost:6433/wms_service_db"
+  admin:       # суперпользователь, напрямую в лидера через HAProxy
+    crm:     "postgresql://postgres:postgres@localhost:5400/crm_service_db"
+    catalog: "postgresql://postgres:postgres@localhost:5400/catalog_service_db"
+    pos:     "postgresql://postgres:postgres@localhost:5400/pos_service_db"
+    wms:     "postgresql://postgres:postgres@localhost:5400/wms_service_db"
+  writer:      # под этой ролью выполняются негативные тесты (чекер всё откатывает)
+    crm:     "postgresql://app:app@localhost:6432/crm_service_db"
+    catalog: "postgresql://app:app@localhost:6432/catalog_service_db"
+    pos:     "postgresql://app:app@localhost:6432/pos_service_db"
+    wms:     "postgresql://app:app@localhost:6432/wms_service_db"
+
+invariants:
+  I1:  {service: catalog, file: "tests/invariants/I1_bk_unique.sql",        expect_sqlstate: "23505"}
+  I2:  {service: catalog, file: "tests/invariants/I2_bk_immutable.sql",     expect_sqlstate: "P0001"}
+  I3:  {service: pos,     file: "tests/invariants/I3_receipt_total.sql",    expect_sqlstate: "P0001"}
+  I4:  {service: pos,     file: "tests/invariants/I4_line_math.sql",        expect_sqlstate: "23514"}
+  I5:  {service: catalog, file: "tests/invariants/I5_price_overlap.sql",    expect_sqlstate: "23P01"}
+  I6:  {service: catalog, file: "tests/invariants/I6_single_current.sql",   expect_sqlstate: "23505"}
+  I7:  {service: wms,     file: "tests/invariants/I7_stock_negative.sql",   expect_sqlstate: "23514"}
+  I8:  {service: pos,     file: "tests/invariants/I8_sell_expired.sql",     expect_sqlstate: "P0001"}
+  I9:  {service: wms,     file: "tests/invariants/I9_receive_expired.sql",  expect_sqlstate: "23514"}
+  I10: {service: pos,     file: "tests/invariants/I10_rx_no_script.sql",    expect_sqlstate: "P0001"}
+  I11: {service: pos,     file: "tests/invariants/I11_refund_excess.sql",   expect_sqlstate: "P0001"}
+  I12: {service: pos,     file: "tests/invariants/I12_payment_total.sql",   expect_sqlstate: "P0001"}
+
+positive_tests:
+  P1: {service: catalog, file: "tests/invariants/P1_updated_at.sql"}
+  P2: {service: crm,     file: "tests/invariants/P2_soft_delete.sql"}
+
+ha:
+  mode: "patroni"
+  pooler_dsn: "postgresql://checker:checker@localhost:6432/pos_service_db"
+  haproxy_rw_dsn: "postgresql://checker:checker@localhost:5400/pos_service_db"
+  haproxy_ro_dsn: "postgresql://checker:checker@localhost:5401/pos_service_db"
+  patroni_api: "http://localhost:8008"
+  expected_members: 3
+  journal: "docs/failover_journal.md"
+
+docs:
+  readme: "README.md"
+  erd: "docs/erd/"
+  adr: "docs/adr/"
+  dwh_mapping: "docs/dwh_mapping.md"
+  sources_log: "docs/sources.md"

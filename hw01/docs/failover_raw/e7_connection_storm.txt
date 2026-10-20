@@ -1,0 +1,28 @@
+# Э7: наплыв клиентов, 2026-10-20T20:48:35Z
+
+## без пула: напрямую в лидера (HAProxy :5400), PostgreSQL max_connections=100
+100 3 
+цель: localhost:5400/pos_service_db; каждый клиент держит pg_sleep(1.0) и закрывает соединение
+ клиентов  успешно  ошибок  время установки соединения, мс (медиана / p95)  всего, с
+       50       50       0                                   174.3 / 215.7       1.2
+       80       80       0                                   364.6 / 375.0       1.4
+       85       85       0                                   373.5 / 387.9       1.4
+       90       90       0                                   102.7 / 236.1       1.2
+       95       95       0                                   228.6 / 359.3       1.4
+      100       96       4                                   392.8 / 417.0       1.4
+          ошибка x4: connection to server at "localhost" (::1), port 5400 failed: FATAL:  remaining connection slots are reserved for roles with the SU
+      150       96      54                                   365.6 / 382.6       1.4
+          ошибка x36: connection to server at "localhost" (::1), port 5400 failed: FATAL:  remaining connection slots are reserved for roles with the SU
+          ошибка x18: connection to server at "localhost" (::1), port 5400 failed: FATAL:  sorry, too many clients already
+      300       96     204                                   321.8 / 360.7       1.6
+          ошибка x119: connection to server at "localhost" (::1), port 5400 failed: FATAL:  remaining connection slots are reserved for roles with the SU
+          ошибка x85: connection to server at "localhost" (::1), port 5400 failed: FATAL:  sorry, too many clients already
+
+## с PgBouncer (:6432, pool_mode=transaction, default_pool_size=20, max_client_conn=1000)
+цель: localhost:6432/pos_service_db; каждый клиент держит pg_sleep(1.0) и закрывает соединение
+ клиентов  успешно  ошибок  время установки соединения, мс (медиана / p95)  всего, с
+       50       50       0                                   148.8 / 150.1       3.3
+      100      100       0                                   238.6 / 258.0       5.4
+      300      300       0                                  380.1 / 1404.2      13.6
+      600      600       0                                  739.0 / 1771.7      26.2
+      900      900       0                                 1276.0 / 7358.5      38.7

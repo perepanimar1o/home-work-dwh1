@@ -1,0 +1,53 @@
+кластер до: pg1=leader/running, pg2=replica/running, pg3=replica/running; изолируем лидера pg1
+20:53:18.337 UTC: docker network disconnect hw01_default hw01-pg1-1
+20:53:22.726 UTC: изолированный pg1: in_recovery=false, default_transaction_read_only=off | попытка записи: ЗАПИСЬ ПРИНЯТА изолированным узлом, id=1322142
+20:53:22.747 UTC:   вид кластера снаружи: pg1=leader/running, pg2=replica/running, pg3=replica/running
+20:53:28.974 UTC: изолированный pg1: psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  the database system is shutting down | попытка записи: psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  the database system is shutting down
+20:53:28.993 UTC:   вид кластера снаружи: pg1=leader/running, pg2=replica/running, pg3=replica/running
+20:53:35.250 UTC: изолированный pg1: psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  the database system is shutting down | попытка записи: psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  the database system is shutting down
+20:53:35.271 UTC:   вид кластера снаружи: pg1=leader/running, pg2=replica/running, pg3=replica/running
+20:53:41.494 UTC: изолированный pg1: psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  the database system is shutting down | попытка записи: psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  the database system is shutting down
+20:53:41.514 UTC:   вид кластера снаружи: pg2=leader/running, pg3=replica/running
+20:53:47.734 UTC: изолированный pg1: psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  the database system is shutting down | попытка записи: psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  the database system is shutting down
+20:53:47.753 UTC:   вид кластера снаружи: pg2=leader/running, pg3=replica/running
+20:53:53.967 UTC: изолированный pg1: psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  the database system is shutting down | попытка записи: psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  the database system is shutting down
+20:53:53.985 UTC:   вид кластера снаружи: pg2=leader/running, pg3=replica/running
+20:54:00.199 UTC: изолированный pg1: psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  the database system is shutting down | попытка записи: psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  the database system is shutting down
+20:54:00.220 UTC:   вид кластера снаружи: pg2=leader/running, pg3=replica/running
+20:54:06.442 UTC: изолированный pg1: psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  the database system is shutting down | попытка записи: psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  the database system is shutting down
+20:54:06.461 UTC:   вид кластера снаружи: pg2=leader/running, pg3=replica/running
+20:54:12.689 UTC: изолированный pg1: psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  the database system is shutting down | попытка записи: psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  the database system is shutting down
+20:54:12.710 UTC:   вид кластера снаружи: pg2=leader/running, pg3=replica/running
+20:54:14.773 UTC: docker network connect hw01_default hw01-pg1-1
+=== write-loop через HAProxy ===
+20:53:08.281 UTC: старт, 2 потоков, 75 с, dsn=localhost:5400/postgres
+
+итог: длительность 75.0 с, успешных транзакций 12945, ошибок 404
+      TPS (успешных/с) = 172.6;  задержка записи: медиана 1.75 мс, p95 3.51 мс
+      окно недоступности записи (RTO): 23.38 с  (последняя успешная запись 20:53:18.430, первая успешная после 20:53:41.813 UTC)
+      отклонено попыток в окне: 404
+      --- фрагмент write-loop вокруг провала ---
+      20:53:18.423 w2 OK  lat_ms=1.2 id=1322139
+      20:53:18.430 w1 OK  lat_ms=1.2 id=1322141
+      20:53:18.430 w2 OK  lat_ms=1.5 id=1322140
+      20:53:28.727 w1 ERR lat_ms=10290.5 server closed the connection unexpectedly
+      20:53:28.727 w2 ERR lat_ms=10290.3 server closed the connection unexpectedly
+      20:53:28.793 w1 ERR lat_ms=7.4 connection to server at "localhost" (::1), port 5400 failed: server closed the connection unexpectedly
+      20:53:28.793 w2 ERR lat_ms=9.1 connection to server at "localhost" (::1), port 5400 failed: server closed the connection unexpectedly
+      20:53:28.855 w2 ERR lat_ms=2.9 connection to server at "localhost" (::1), port 5400 failed: server closed the connection unexpectedly
+            ... (ещё ошибки) ...
+      20:53:41.599 w2 ERR lat_ms=4.1 connection to server at "localhost" (::1), port 5400 failed: server closed the connection unexpectedly
+      20:53:41.662 w1 ERR lat_ms=4.3 connection to server at "localhost" (::1), port 5400 failed: server closed the connection unexpectedly
+      20:53:41.663 w2 ERR lat_ms=2.8 connection to server at "localhost" (::1), port 5400 failed: server closed the connection unexpectedly
+      20:53:41.731 w1 ERR lat_ms=7.5 connection to server at "localhost" (::1), port 5400 failed: server closed the connection unexpectedly
+      20:53:41.731 w2 ERR lat_ms=8.1 connection to server at "localhost" (::1), port 5400 failed: server closed the connection unexpectedly
+      20:53:41.813 w1 OK  lat_ms=20.1 id=1322148
+      20:53:41.813 w2 OK  lat_ms=24.0 id=1322149
+      20:53:41.821 w2 OK  lat_ms=2.4 id=1322150
+      ошибки:
+        x2     20:53:28.727 .. 20:53:28.727  server closed the connection unexpectedly
+        x402   20:53:28.793 .. 20:53:41.731  connection to server at "localhost" (::1), port 5400 failed: server closed the connection unexpectedly
+      подтверждённые id сохранены: /var/folders/qk/xqr31yfn2ybdzfwmsk725srw0000gn/T/tmp.FSS1ZVuHlv.acks (12945)
+=== проверка потерь подтверждённых транзакций на новом лидере ===
+проверка на узле 172.19.0.5/32 (in_recovery=False): подтверждено клиенту 12945, найдено в таблице 12945, ПОТЕРЯНО подтверждённых транзакций: 0
+кластер после возврата: pg1=replica/running, pg2=leader/running, pg3=replica/running
